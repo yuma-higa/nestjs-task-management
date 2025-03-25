@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Task,taskStatus } from './tasks.model';
 import {v4 as uuid} from 'uuid';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { filterTaskDto } from './dto/filter-task.dto';
+import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 
 
 @Injectable()
@@ -17,7 +18,7 @@ export class TasksService {
         const {status,search} = filterDto;
         let tempArr:Task[] = this.getAllTasks();
         if(status){
-            tempArr = this.tasks.filter((task)=> task.status === filterDto.status)
+            tempArr = this.tasks.filter((task)=> task.status === status)
         }
         if(search){
             tempArr = this.tasks.filter((task)=> task.title.toLowerCase().includes(search)||task.description.toLowerCase().includes(search));
@@ -36,11 +37,16 @@ export class TasksService {
         return tsk;
     }
     getTaskById(id:string):Task{
-        return this.tasks.find((task) => task.id === id);
+        const found = this.tasks.find((task) => task.id === id);
+        if(!found){
+            throw new NotFoundException(`task with id not found:${id}`);
+        } 
+        return found;
     }
 
     deleteTaskById(id:string):void{
-     this.tasks = this.tasks.filter(task => task.id !== id);
+     const found = this.getTaskById(id);
+     this.tasks = this.tasks.filter(task => task.id !== found.id);
     }
 
     changeTtlById(id:string,title:string,description:string):Task{
@@ -51,12 +57,19 @@ export class TasksService {
        return tskForTtldes;
     }
 
-    changeStsById(id:string,status:taskStatus):Task{
-        const tskForsts:Task = this.tasks.find((task)=>task.id === id);
-        if(tskForsts){
-            tskForsts.status = status;
-        }
-        return tskForsts;
+    changeStsById(id: string, status:taskStatus): Task {
+        const found = this.getTaskById(id);
+        found.status = status;
+        return found;
+    }
+    
+    updateTaskById(id:string,createTaskDto:CreateTaskDto):Task{
+        const {title,description,status} = createTaskDto;
+        const tsk:Task = this.getTaskById(id);
+        tsk.title = title;
+        tsk.description = description;
+        tsk.status = status;
+        return tsk;
     }
 }
 // {
